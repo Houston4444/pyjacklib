@@ -16,6 +16,7 @@
 # For a full copy of the GNU General Public License see the file COPYING.md.
 
 from ctypes import pointer, c_char_p
+from typing import Iterator
 from . import api as jacklib
 
 
@@ -80,6 +81,25 @@ def c_char_p_p_to_list(c_char_p_p: 'pointer[c_char_p]',
 
     jacklib.free(c_char_p_p)
     return ret_list
+
+
+def iterate_c_char_p_p(c_char_p_p: 'pointer[c_char_p]',
+                       encoding=jacklib.ENCODING,
+                       errors="ignore") -> Iterator[str]:
+    i = 0
+    
+    if not c_char_p:
+        return
+    
+    while True:
+        new_char_p = c_char_p_p[i]
+        if not new_char_p:
+            break
+        
+        yield new_char_p.decode(encoding=encoding, errors=errors)
+        i += 1
+        
+    jacklib.free(c_char_p_p)
 
 
 def voidptr2str(void_p) -> str:
