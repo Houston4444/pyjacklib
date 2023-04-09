@@ -6,10 +6,10 @@ import jacklib
 @pytest.mark.jack_server_required
 @pytest.mark.skipif(jacklib.jlib.jack_port_rename is None, reason="libjack does not implement 'jack_port_rename'.")
 @pytest.mark.parametrize("porttype,flags,name", [
-    (jacklib.JACK_DEFAULT_AUDIO_TYPE, jacklib.JackPortIsOutput, "output"),
-    (jacklib.JACK_DEFAULT_AUDIO_TYPE, jacklib.JackPortIsInput, "input"),
-    (jacklib.JACK_DEFAULT_MIDI_TYPE, jacklib.JackPortIsOutput, "midi_output"),
-    (jacklib.JACK_DEFAULT_MIDI_TYPE, jacklib.JackPortIsInput, "midi_input"),
+    (jacklib.JACK_DEFAULT_AUDIO_TYPE, jacklib.JackPortFlags.IS_OUTPUT, "output"),
+    (jacklib.JACK_DEFAULT_AUDIO_TYPE, jacklib.JackPortFlags.IS_INPUT, "input"),
+    (jacklib.JACK_DEFAULT_MIDI_TYPE, jacklib.JackPortFlags.IS_OUTPUT, "midi_output"),
+    (jacklib.JACK_DEFAULT_MIDI_TYPE, jacklib.JackPortFlags.IS_INPUT, "midi_input"),
 ])
 def test_port_rename(jack_client, porttype, flags, name):
     port = jacklib.port_register(jack_client, name, porttype, flags, 0)
@@ -25,7 +25,7 @@ def test_port_rename(jack_client, porttype, flags, name):
 
 @pytest.mark.jack_server_required
 def test_port_rename_not_supported(jack_client):
-    port = jacklib.port_register(jack_client, "output", jacklib.JACK_DEFAULT_AUDIO_TYPE, jacklib.JackPortIsOutput, 0)
+    port = jacklib.port_register(jack_client, "output", jacklib.JACK_DEFAULT_AUDIO_TYPE, jacklib.JackPortFlags.IS_OUTPUT, 0)
 
     if not port:
         raise OSError(f"Could not register port {name}.")

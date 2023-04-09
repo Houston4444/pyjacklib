@@ -18,6 +18,7 @@
 from ctypes import pointer, c_char_p
 from typing import Iterator
 from . import api as jacklib
+from .api import JackStatus
 
 
 def get_jack_status_error_string(cStatus):
@@ -28,37 +29,42 @@ def get_jack_status_error_string(cStatus):
     if status == 0x0:
         return ""
 
-    errorString = []
+    try:
+        status = JackStatus(status)
+    except:
+        return ""
 
-    if status == jacklib.JackFailure:
+    error_string = list[str]()
+
+    if status is JackStatus.FAILURE:
         # Only include this generic message if no other error status is set
-        errorString.append("Overall operation failed")
-    if status & jacklib.JackInvalidOption:
-        errorString.append("The operation contained an invalid or unsupported option")
-    if status & jacklib.JackNameNotUnique:
-        errorString.append("The desired client name was not unique")
-    if status & jacklib.JackServerStarted:
-        errorString.append("The JACK server was started as a result of this operation")
-    if status & jacklib.JackServerFailed:
-        errorString.append("Unable to connect to the JACK server")
-    if status & jacklib.JackServerError:
-        errorString.append("Communication error with the JACK server")
-    if status & jacklib.JackNoSuchClient:
-        errorString.append("Requested client does not exist")
-    if status & jacklib.JackLoadFailure:
-        errorString.append("Unable to load internal client")
-    if status & jacklib.JackInitFailure:
-        errorString.append("Unable to initialize client")
-    if status & jacklib.JackShmFailure:
-        errorString.append("Unable to access shared memory")
-    if status & jacklib.JackVersionError:
-        errorString.append("Client's protocol version does not match")
-    if status & jacklib.JackBackendError:
-        errorString.append("Backend Error")
-    if status & jacklib.JackClientZombie:
-        errorString.append("Client is being shutdown against its will")
+        error_string.append("Overall operation failed")
+    if status & JackStatus.INVALID_OPTION:
+        error_string.append("The operation contained an invalid or unsupported option")
+    if status & JackStatus.NAME_NOT_UNIQUE:
+        error_string.append("The desired client name was not unique")
+    if status & JackStatus.SERVER_STARTED:
+        error_string.append("The JACK server was started as a result of this operation")
+    if status & JackStatus.SERVER_FAILED:
+        error_string.append("Unable to connect to the JACK server")
+    if status & JackStatus.SERVER_ERROR:
+        error_string.append("Communication error with the JACK server")
+    if status & JackStatus.NO_SUCH_CLIENT:
+        error_string.append("Requested client does not exist")
+    if status & JackStatus.LOAD_FAILURE:
+        error_string.append("Unable to load internal client")
+    if status & JackStatus.INIT_FAILURE:
+        error_string.append("Unable to initialize client")
+    if status & JackStatus.SHM_FAILURE:
+        error_string.append("Unable to access shared memory")
+    if status & JackStatus.VERSION_ERROR:
+        error_string.append("Client's protocol version does not match")
+    if status & JackStatus.BACKEND_ERROR:
+        error_string.append("Backend Error")
+    if status & JackStatus.CLIENT_ZOMBIE:
+        error_string.append("Client is being shutdown against its will")
 
-    return ";\n".join(errorString) + "."
+    return ";\n".join(error_string) + "."
 
 
 def c_char_p_p_to_list(c_char_p_p: 'pointer[c_char_p]',

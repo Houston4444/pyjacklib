@@ -40,6 +40,7 @@ from ctypes import (
     pointer,
     sizeof,
 )
+from enum import IntEnum, IntFlag
 from sys import platform
 from typing import Callable, Iterator
 
@@ -162,84 +163,96 @@ jack_property_change_t = c_enum  # JacKPropertyChange
 # JACK2 only:
 jack_port_type_id_t = c_uint32
 
-# enum JackOptions
-JackNullOption = 0x00
-JackNoStartServer = 0x01
-JackUseExactName = 0x02
-JackServerName = 0x04
-JackLoadName = 0x08
-JackLoadInit = 0x10
-JackSessionID = 0x20
-JackOpenOptions = JackSessionID | JackServerName | JackNoStartServer | JackUseExactName
-JackLoadOptions = JackLoadInit | JackLoadName | JackUseExactName
 
-# enum JackStatus
-JackFailure = 0x01
-JackInvalidOption = 0x02
-JackNameNotUnique = 0x04
-JackServerStarted = 0x08
-JackServerFailed = 0x10
-JackServerError = 0x20
-JackNoSuchClient = 0x40
-JackLoadFailure = 0x80
-JackInitFailure = 0x100
-JackShmFailure = 0x200
-JackVersionError = 0x400
-JackBackendError = 0x800
-JackClientZombie = 0x1000
-
-# enum JackLatencyCallbackMode
-JackCaptureLatency = 0
-JackPlaybackLatency = 1
-
-# enum JackPortFlags
-JackPortIsInput = 0x1
-JackPortIsOutput = 0x2
-JackPortIsPhysical = 0x4
-JackPortCanMonitor = 0x8
-JackPortIsTerminal = 0x10
-JackPortIsControlVoltage = 0x100
-
-# enum JackTransportState
-JackTransportStopped = 0
-JackTransportRolling = 1
-JackTransportLooping = 2
-JackTransportStarting = 3
-# JACK2 only:
-JackTransportNetStarting = 4
-
-# enum JackPositionBits
-JackPositionBBT = 0x10
-JackPositionTimecode = 0x20
-JackBBTFrameOffset = 0x40
-JackAudioVideoRatio = 0x80
-JackVideoFrameOffset = 0x100
-JACK_POSITION_MASK = (
-    JackPositionBBT
-    | JackPositionTimecode
-    | JackBBTFrameOffset
-    | JackAudioVideoRatio
-    | JackVideoFrameOffset
-)
-
-# enum JackSessionEventType
-JackSessionSave = 1
-JackSessionSaveAndQuit = 2
-JackSessionSaveTemplate = 3
-
-# enum JackSessionFlags
-JackSessionSaveError = 0x01
-JackSessionNeedTerminal = 0x02
-
-# enum JackPropertyChange
-PropertyCreated = 0
-PropertyChanged = 1
-PropertyDeleted = 2
+class JackOptions(IntFlag):
+    NULL = 0x00
+    NO_START_SERVER = 0x01
+    USE_EXACT_NAME = 0x02
+    SERVER_NAME = 0x04
+    LOAD_NAME = 0x08
+    LOAD_INIT = 0x10
+    SESSION_ID = 0x20
+    
+    OPEN_OPTIONS = SESSION_ID | SERVER_NAME | NO_START_SERVER | USE_EXACT_NAME
+    LOAD_OPTIONS = LOAD_INIT | LOAD_NAME | USE_EXACT_NAME
 
 
-# -------------------------------------------------------------------------------------------------
+class JackStatus(IntFlag):
+    FAILURE = 0x001
+    INVALID_OPTION = 0x0002
+    NAME_NOT_UNIQUE = 0x0004
+    SERVER_STARTED = 0x0008
+    SERVER_FAILED = 0x0010
+    SERVER_ERROR = 0x0020
+    NO_SUCH_CLIENT = 0x0040
+    LOAD_FAILURE = 0x0080
+    INIT_FAILURE = 0x0100
+    SHM_FAILURE = 0x0200
+    VERSION_ERROR = 0x0400
+    BACKEND_ERROR = 0x0800
+    CLIENT_ZOMBIE = 0x1000
+
+
+class JackLatencyCallbackMode(IntEnum):
+    CAPTURE = 0
+    PLAYBACK = 1
+
+# !!! NOT USED #TODO
+# # enum JackLatencyCallbackMode
+# JackCaptureLatency = 0
+# JackPlaybackLatency = 1
+
+class JackPortFlags(IntFlag):
+    IS_INPUT = 0x01
+    IS_OUTPUT = 0x02
+    IS_PHYSICAL = 0x04
+    CAN_MONITOR = 0x08
+    IS_TERMINAL = 0x10
+    IS_CONTROL_VOLTAGE = 0x100
+
+
+class JackTransportState(IntEnum):
+    STOPPED = 0
+    ROLLING = 1
+    LOOPING = 2
+    STARTING = 3
+    # JACK2 only:
+    NET_STARTING = 4
+    
+
+class JackPositionBits(IntFlag):
+    POSITION_BBT = 0x10
+    POSITION_TIMECODE = 0x20
+    BBT_FRAME_OFFSET = 0x40
+    AUDIO_VIDEO_RATIO = 0x80
+    VIDEO_FRAME_OFFSET = 0x100
+    
+    POSITION_MASK = (
+        POSITION_BBT
+        | POSITION_TIMECODE
+        | BBT_FRAME_OFFSET
+        | AUDIO_VIDEO_RATIO
+        | VIDEO_FRAME_OFFSET)
+
+
+class JackSessionEvenType(IntEnum):
+    SAVE = 1
+    SAVE_AND_QUIT = 2
+    SAVE_TEMPLATE = 3
+
+
+class JackSessionFlags(IntFlag):
+    SAVE_ERROR = 0x01
+    NEED_TERMINAL = 0x02
+
+
+class JackPropertyChange(IntEnum):
+    CREATED = 0
+    CHANGED = 1
+    DELETED = 2
+
+
 # Structs
-
 
 class jack_midi_event_t(Structure):
     time: jack_nframes_t
