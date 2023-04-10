@@ -18,6 +18,7 @@
 # -------------------------------------------------------------------------------------------------
 # Imports (Global)
 
+import sys
 from collections import namedtuple
 from ctypes import (
     ARRAY,
@@ -40,9 +41,20 @@ from ctypes import (
     pointer,
     sizeof,
 )
-from enum import IntEnum, IntFlag
-from sys import platform
 from typing import Callable, Iterator
+
+# import locals
+from enums import (
+    JackOptions,
+    JackStatus,
+    JackLatencyCallbackMode,
+    JackPortFlags,
+    JackTransportState,
+    JackPositionBits,
+    JackSessionEvenType,
+    JackSessionFlags,
+    JackPropertyChange
+)
 
 # -------------------------------------------------------------------------------------------------
 # Load JACK shared library
@@ -53,9 +65,9 @@ def _is_python_64bit():
 
 
 try:
-    if platform == "darwin":
+    if sys.platform == "darwin":
         _libname = "libjack.dylib"
-    elif platform in ("win32", "cygwin"):
+    elif sys.platform in ("win32", "cygwin"):
         if _is_python_64bit():
             _libname = "libjack64.dll"
         else:
@@ -164,96 +176,7 @@ jack_property_change_t = c_enum  # JacKPropertyChange
 jack_port_type_id_t = c_uint32
 
 
-class JackOptions(IntFlag):
-    NULL = 0x00
-    NO_START_SERVER = 0x01
-    USE_EXACT_NAME = 0x02
-    SERVER_NAME = 0x04
-    LOAD_NAME = 0x08
-    LOAD_INIT = 0x10
-    SESSION_ID = 0x20
-    
-    OPEN_OPTIONS = SESSION_ID | SERVER_NAME | NO_START_SERVER | USE_EXACT_NAME
-    LOAD_OPTIONS = LOAD_INIT | LOAD_NAME | USE_EXACT_NAME
-
-
-class JackStatus(IntFlag):
-    FAILURE = 0x001
-    INVALID_OPTION = 0x0002
-    NAME_NOT_UNIQUE = 0x0004
-    SERVER_STARTED = 0x0008
-    SERVER_FAILED = 0x0010
-    SERVER_ERROR = 0x0020
-    NO_SUCH_CLIENT = 0x0040
-    LOAD_FAILURE = 0x0080
-    INIT_FAILURE = 0x0100
-    SHM_FAILURE = 0x0200
-    VERSION_ERROR = 0x0400
-    BACKEND_ERROR = 0x0800
-    CLIENT_ZOMBIE = 0x1000
-
-
-class JackLatencyCallbackMode(IntEnum):
-    CAPTURE = 0
-    PLAYBACK = 1
-
-# !!! NOT USED #TODO
-# # enum JackLatencyCallbackMode
-# JackCaptureLatency = 0
-# JackPlaybackLatency = 1
-
-class JackPortFlags(IntFlag):
-    IS_INPUT = 0x01
-    IS_OUTPUT = 0x02
-    IS_PHYSICAL = 0x04
-    CAN_MONITOR = 0x08
-    IS_TERMINAL = 0x10
-    IS_CONTROL_VOLTAGE = 0x100
-
-
-class JackTransportState(IntEnum):
-    STOPPED = 0
-    ROLLING = 1
-    LOOPING = 2
-    STARTING = 3
-    # JACK2 only:
-    NET_STARTING = 4
-    
-
-class JackPositionBits(IntFlag):
-    POSITION_BBT = 0x10
-    POSITION_TIMECODE = 0x20
-    BBT_FRAME_OFFSET = 0x40
-    AUDIO_VIDEO_RATIO = 0x80
-    VIDEO_FRAME_OFFSET = 0x100
-    
-    POSITION_MASK = (
-        POSITION_BBT
-        | POSITION_TIMECODE
-        | BBT_FRAME_OFFSET
-        | AUDIO_VIDEO_RATIO
-        | VIDEO_FRAME_OFFSET)
-
-
-class JackSessionEvenType(IntEnum):
-    SAVE = 1
-    SAVE_AND_QUIT = 2
-    SAVE_TEMPLATE = 3
-
-
-class JackSessionFlags(IntFlag):
-    SAVE_ERROR = 0x01
-    NEED_TERMINAL = 0x02
-
-
-class JackPropertyChange(IntEnum):
-    CREATED = 0
-    CHANGED = 1
-    DELETED = 2
-
-
 # Structs
-
 class jack_midi_event_t(Structure):
     time: jack_nframes_t
     size: c_size_t
