@@ -18,9 +18,9 @@
 # -------------------------------------------------------------------------------------------------
 # Imports (Global)
 
-import sys
 from collections import namedtuple
 from ctypes import (
+    pointer,
     POINTER,
     byref,
     c_char_p

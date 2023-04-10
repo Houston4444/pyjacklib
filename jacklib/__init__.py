@@ -15,5 +15,7 @@
 #
 # For a full copy of the GNU General Public License see the file COPYING.md.
 
+from .types import *
+from .enums import *
 from .api import *  # noqa
 from .version import __version__  # noqa
