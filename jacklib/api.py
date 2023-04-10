@@ -21,42 +21,14 @@
 import sys
 from collections import namedtuple
 from ctypes import (
-    ARRAY,
-    CFUNCTYPE,
     POINTER,
-    Structure,
     byref,
-    c_char_p,
-    c_double,
-    c_float,
-    c_int,
-    c_int32,
-    c_size_t,
-    c_uint8,
-    c_uint32,
-    c_uint64,
-    c_ulong,
-    c_void_p,
-    cdll,
-    pointer,
-    sizeof,
+    c_char_p
 )
-from typing import Callable, Iterator
+from typing import Iterator
 
 # import locals
-from .cdll_funcs import (
-    set_jack2,
-    setup_cdll_functions,
-    setup_non_callback_cdll_func,
-    setup_server_control_funcs,
-    setup_port_funcs,
-    setup_latency_func,
-    setup_port_searching_func,
-    setup_time_func,
-    setup_misc_func,
-    setup_transport_func,
-    setup_midi_func
-)
+from .cdll_funcs import get_jlib
 from .enums import (
     JackOptions,
     JackStatus,
@@ -69,26 +41,9 @@ from .enums import (
     JackPropertyChange
 )
 from .types import (
-    jack_nframes_t,
-    jack_midi_data_t,
-    jack_unique_t,
-    jack_time_t,
-    jack_position_bits_t,
-    jack_session_event_type_t,
-    jack_session_flags_t,
     jack_uuid_t,
-    jack_transport_state_t,
     jack_client_t,
-    jack_port_type_id_t,
-    jack_port_id_t,
     jack_port_t,
-    jack_status_t,
-    jack_latency_callback_mode_t,
-    jack_property_change_t,
-    jack_position_t,
-    jack_session_event_t,
-    jack_latency_range_t,
-    jack_midi_event_t,
     jack_description_t,
     jack_session_command_t,
     JackThreadCallback,
@@ -97,37 +52,7 @@ from .types import (
 )
 from .cb_setter import init_callback_setter, callback_setter
 
-def _is_python_64bit():
-    return sizeof(c_void_p) == 8
-
-
-# Load JACK shared library
-try:
-    if sys.platform == "darwin":
-        _libname = "libjack.dylib"
-    elif sys.platform in ("win32", "cygwin"):
-        if _is_python_64bit():
-            _libname = "libjack64.dll"
-        else:
-            _libname = "libjack.dll"
-    else:
-        _libname = "libjack.so.0"
-
-    jlib = cdll.LoadLibrary(_libname)
-except OSError:
-    raise ImportError("JACK is not available in this system")
-
-
-# JACK2 test
-try:
-    if jlib.jack_get_version_string:
-        JACK2 = True
-    else:
-        JACK2 = False
-except AttributeError:
-    JACK2 = False
-
-set_jack2(JACK2)
+jlib = get_jlib()
 
 # Defines
 ENCODING = "utf-8"
@@ -167,17 +92,13 @@ def _d(s: bytes, encoding=ENCODING) -> str:
     return s
 
 init_callback_setter(jlib)
-# setup functions
-setup_cdll_functions(jlib)
 
-
-# JACK2 only:
+# JACK2 only
 def get_version_string() -> str:
     if jlib.jack_get_version_string:
         return _d(jlib.jack_get_version_string())
 
     return ''
-
 
 def client_open(client_name: str, options, status, uuid="") -> 'pointer[jack_client_t]':
     if jlib.jack_client_open:
@@ -186,13 +107,11 @@ def client_open(client_name: str, options, status, uuid="") -> 'pointer[jack_cli
 
     return None
 
-
 def client_rename(client, new_name: str):
     if jlib.jack_client_rename:
         return jlib.jack_client_rename(client, _e(new_name))
 
     return None
-
 
 def client_close(client) -> int:
     if jlib.jack_client_close:
@@ -200,13 +119,11 @@ def client_close(client) -> int:
 
     return -1
 
-
 def client_name_size() -> int:
     if jlib.jack_client_name_size:
         return jlib.jack_client_name_size()
 
     return 0
-
 
 def get_client_name(client):
     if jlib.jack_get_client_name:
@@ -214,13 +131,11 @@ def get_client_name(client):
 
     return None
 
-
 def activate(client) -> int:
     if jlib.jack_activate:
         return jlib.jack_activate(client)
 
     return -1
-
 
 def deactivate(client) -> int:
     if jlib.jack_deactivate:
@@ -228,14 +143,12 @@ def deactivate(client) -> int:
 
     return -1
 
-
-# # JACK2 only:
+# JACK2 only
 def get_client_pid(name: str) -> int:
     if jlib.jack_get_client_pid:
         return jlib.jack_get_client_pid(_e(name))
 
     return 0
-
 
 def is_realtime(client) -> int:
     if jlib.jack_is_realtime:
@@ -243,10 +156,8 @@ def is_realtime(client) -> int:
 
     return 0
 
-
 # Non-Callback API
 _thread_callback = None
-setup_non_callback_cdll_func(jlib)
 
 def cycle_wait(client):
     if jlib.jack_cycle_wait:
@@ -254,11 +165,9 @@ def cycle_wait(client):
 
     return 0
 
-
 def cycle_signal(client, status):
     if jlib.jack_cycle_signal:
         jlib.jack_cycle_signal(client, status)
-
 
 def set_process_thread(client, thread_callback, arg):
     if jlib.jack_set_process_thread:
@@ -267,7 +176,6 @@ def set_process_thread(client, thread_callback, arg):
         return jlib.jack_set_process_thread(client, _thread_callback, arg)
 
     return -1
-
 
 @callback_setter
 def set_thread_init_callback(client, thread_init_callback, arg) -> int:
@@ -301,7 +209,7 @@ def set_sample_rate_callback(client, srate_callback, arg) -> int:
 def set_client_registration_callback(client, client_registration_callback, arg) -> int:
     ...
 
-# JACK2 only:
+# JACK2 only
 @callback_setter
 def set_client_rename_callback(client, client_rename_callback, arg) -> int:
     ...
@@ -314,7 +222,7 @@ def set_port_registration_callback(client, port_registration_callback, arg) -> i
 def set_port_connect_callback(client, connect_callback, arg) -> int:
     ...
 
-# JACK2 only:
+# JACK2 only
 @callback_setter
 def set_port_rename_callback(client, rename_callback, arg) -> int:
     ...
@@ -333,8 +241,6 @@ def set_latency_callback(client, latency_callback, arg) -> int:
 
 # -------------------------------------------------------------------------------------------------
 # Server Control
-setup_server_control_funcs(jlib)
-
 def set_freewheel(client, onoff):
     return jlib.jack_set_freewheel(client, onoff)
 
@@ -355,8 +261,6 @@ def cpu_load(client):
 
 # -------------------------------------------------------------------------------------------------
 # Port Functions
-setup_port_funcs(jlib)
-
 def port_register(client, port_name, port_type, flags, buffer_size):
     return jlib.jack_port_register(
         client, _e(port_name), _e(port_type), flags, buffer_size)
@@ -379,7 +283,7 @@ def port_flags(port) -> int:
 def port_type(port) -> str:
     return _d(jlib.jack_port_type(port))
 
-# JACK2 only:
+# JACK2 only
 def port_type_id(port):
     return jlib.jack_port_type_id(port)
 
@@ -483,8 +387,6 @@ def port_uuid(port):
 
 # -------------------------------------------------------------------------------------------------
 # Latency Functions
-setup_latency_func(jlib)
-
 def port_set_latency(port, nframes):
     jlib.jack_port_set_latency(port, nframes)
 
@@ -510,8 +412,6 @@ def recompute_total_latency(client, port):
 
 # -------------------------------------------------------------------------------------------------
 # Port Searching
-setup_port_searching_func(jlib)
-
 def get_ports(client, port_name_pattern=None,
               type_name_pattern=None, flags=0) -> 'pointer[c_char_p]':
     return jlib.jack_get_ports(
@@ -526,8 +426,6 @@ def port_by_id(client, port_id) -> 'pointer[jack_port_t]':
 
 # -------------------------------------------------------------------------------------------------
 # Time Functions
-setup_time_func(jlib)
-
 def frames_since_cycle_start(client):
     return jlib.jack_frames_since_cycle_start(client)
 
@@ -561,9 +459,7 @@ def get_time():
 
 # -------------------------------------------------------------------------------------------------
 # Misc
-
 _error_callback = None
-setup_misc_func(jlib)
 
 def set_error_function(error_callback):
     global _error_callback
@@ -580,7 +476,6 @@ def free(ptr):
 # Transport
 
 _sync_callback = _timebase_callback = None
-setup_transport_func(jlib)
 
 def release_timebase(client):
     return jlib.jack_release_timebase(client)
@@ -595,7 +490,8 @@ def set_sync_timeout(client, timeout):
 def set_timebase_callback(client, conditional, timebase_callback, arg):
     global _timebase_callback
     _timebase_callback = JackTimebaseCallback(timebase_callback)
-    return jlib.jack_set_timebase_callback(client, conditional, _timebase_callback, arg)
+    return jlib.jack_set_timebase_callback(
+        client, conditional, _timebase_callback, arg)
 
 def transport_locate(client, frame):
     return jlib.jack_transport_locate(client, frame)
@@ -617,8 +513,6 @@ def transport_stop(client):
 
 # -------------------------------------------------------------------------------------------------
 # MIDI
-setup_midi_func(jlib)
-
 def midi_get_event_count(port_buffer):
     return jlib.jack_midi_get_event_count(port_buffer)
 
@@ -642,78 +536,6 @@ def midi_get_lost_event_count(port_buffer):
 
 # -------------------------------------------------------------------------------------------------
 # Session
-
-try:
-    jlib.jack_session_reply.argtypes = [POINTER(jack_client_t), POINTER(jack_session_event_t)]
-    jlib.jack_session_reply.restype = c_int
-except AttributeError:
-    jlib.jack_session_reply = None
-
-try:
-    jlib.jack_session_event_free.argtypes = [POINTER(jack_session_event_t)]
-    jlib.jack_session_event_free.restype = None
-except AttributeError:
-    jlib.jack_session_event_free = None
-
-try:
-    jlib.jack_client_get_uuid.argtypes = [POINTER(jack_client_t)]
-    jlib.jack_client_get_uuid.restype = c_char_p
-except AttributeError:
-    jlib.jack_client_get_uuid = None
-
-try:
-    jlib.jack_session_notify.argtypes = [
-        POINTER(jack_client_t),
-        c_char_p,
-        jack_session_event_type_t,
-        c_char_p,
-    ]
-    jlib.jack_session_notify.restype = POINTER(jack_session_command_t)
-except AttributeError:
-    jlib.jack_session_notify = None
-
-try:
-    jlib.jack_session_commands_free.argtypes = [POINTER(jack_session_command_t)]
-    jlib.jack_session_commands_free.restype = None
-except AttributeError:
-    jlib.jack_session_commands_free = None
-
-try:
-    jlib.jack_get_uuid_for_client_name.argtypes = [POINTER(jack_client_t), c_char_p]
-    jlib.jack_get_uuid_for_client_name.restype = c_char_p
-except AttributeError:
-    jlib.jack_get_uuid_for_client_name = None
-
-try:
-    jlib.jack_get_client_name_by_uuid.argtypes = [POINTER(jack_client_t), c_char_p]
-    jlib.jack_get_client_name_by_uuid.restype = c_char_p
-except AttributeError:
-    jlib.jack_get_client_name_by_uuid = None
-
-try:
-    jlib.jack_reserve_client_name.argtypes = [POINTER(jack_client_t), c_char_p, c_char_p]
-    jlib.jack_reserve_client_name.restype = c_int
-except AttributeError:
-    jlib.jack_reserve_client_name = None
-
-try:
-    jlib.jack_client_has_session_callback.argtypes = [POINTER(jack_client_t), c_char_p]
-    jlib.jack_client_has_session_callback.restype = c_int
-except AttributeError:
-    jlib.jack_client_has_session_callback = None
-
-try:
-    jlib.jack_uuid_parse.argtypes = [c_char_p, POINTER(jack_uuid_t)]
-    jlib.jack_uuid_parse.restype = c_int
-except AttributeError:
-    jlib.jack_uuid_parse = None
-
-try:
-    jlib.jack_uuid_unparse.argtypes = [jack_uuid_t, c_char_p]
-    jlib.jack_uuid_unparse.restype = None
-except AttributeError:
-    jlib.jack_uuid_unparse = None
-
 @callback_setter
 def set_session_callback(client, session_callback, arg):
     ...
@@ -724,11 +546,9 @@ def session_reply(client, event):
 
     return -1
 
-
 def session_event_free(event):
     if jlib.jack_session_event_free:
         jlib.jack_session_event_free(event)
-
 
 def client_get_uuid(client):
     if jlib.jack_client_get_uuid:
@@ -736,18 +556,15 @@ def client_get_uuid(client):
 
     return None
 
-
 def session_notify(client, target, type_, path):
     if jlib.jack_session_notify:
         return jlib.jack_session_notify(client, _e(target), type_, _e(path))
 
     return jack_session_command_t()
 
-
 def session_commands_free(cmds):
     if jlib.jack_session_commands_free:
         jlib.jack_session_commands_free(cmds)
-
 
 def get_uuid_for_client_name(client, client_name):
     if jlib.jack_get_uuid_for_client_name:
@@ -755,13 +572,11 @@ def get_uuid_for_client_name(client, client_name):
 
     return None
 
-
 def get_client_name_by_uuid(client, client_uuid):
     if jlib.jack_get_client_name_by_uuid:
         return jlib.jack_get_client_name_by_uuid(client, _e(client_uuid))
 
     return None
-
 
 def reserve_client_name(client, name, uuid):
     if jlib.jack_reserve_client_name:
@@ -769,13 +584,11 @@ def reserve_client_name(client, name, uuid):
 
     return -1
 
-
 def client_has_session_callback(client, client_name):
     if jlib.jack_client_has_session_callback:
         return jlib.jack_client_has_session_callback(client, _e(client_name))
 
     return -1
-
 
 def uuid_parse(uuid_cstr):
     if jlib.jack_uuid_parse and uuid_cstr is not None:
@@ -785,7 +598,6 @@ def uuid_parse(uuid_cstr):
 
     return -1
 
-
 def uuid_unparse(uuid, encoding=ENCODING):
     if jlib.jack_uuid_unparse:
         uuid_str = c_char_p(b" " * JACK_UUID_STRING_SIZE)
@@ -794,57 +606,14 @@ def uuid_unparse(uuid, encoding=ENCODING):
 
     return ""
 
-
 # -------------------------------------------------------------------------------------------------
 # Meta data
 
 Property = namedtuple("Property", ("key", "value", "type"))
 
-try:
-    jlib.jack_free_description.argtypes = [POINTER(jack_description_t), c_int]
-    jlib.jack_free_description.restype = None
-
-    jlib.jack_get_all_properties.argtypes = [POINTER(POINTER(jack_description_t))]
-    jlib.jack_get_all_properties.restype = c_int
-
-    jlib.jack_get_properties.argtypes = [jack_uuid_t, POINTER(jack_description_t)]
-    jlib.jack_get_properties.restype = c_int
-
-    jlib.jack_get_property.argtypes = [jack_uuid_t, c_char_p, POINTER(c_char_p), POINTER(c_char_p)]
-    jlib.jack_get_property.restype = c_int
-
-    jlib.jack_remove_all_properties.argtypes = [POINTER(jack_client_t)]
-    jlib.jack_remove_all_properties.restype = c_int
-
-    jlib.jack_remove_properties.argtypess = [POINTER(jack_client_t), POINTER(jack_uuid_t)]
-    jlib.jack_remove_properties.restype = c_int
-
-    jlib.jack_remove_property.argtypes = [POINTER(jack_client_t), POINTER(jack_uuid_t), c_char_p]
-    jlib.jack_remove_property.restype = c_int
-
-    jlib.jack_set_property.argtypes = [
-        POINTER(jack_client_t),
-        jack_uuid_t,
-        c_char_p,
-        c_char_p,
-        c_char_p,
-    ]
-    jlib.jack_set_property.restype = c_int
-
-except AttributeError:
-    jlib.jack_free_description = None
-    jlib.jack_get_properties = None
-    jlib.jack_get_property = None
-    jlib.jack_remove_all_properties = None
-    jlib.jack_remove_properties = None
-    jlib.jack_remove_property = None
-    jlib.jack_set_property = None
-
-
 def free_description(description, free_description_itself=0):
     if jlib.jack_free_description:
         jlib.jack_free_description(description, free_description_itself)
-
 
 def _decode_property(prop, encoding=ENCODING):
     key, value, type_ = prop.key, prop.data, prop.type
@@ -871,7 +640,6 @@ def _decode_property(prop, encoding=ENCODING):
 
     return Property(key, value, type_)
 
-
 def get_all_properties(encoding=ENCODING):
     descriptions = POINTER(jack_description_t)()
     ret = jlib.jack_get_all_properties(byref(descriptions))
@@ -892,7 +660,6 @@ def get_all_properties(encoding=ENCODING):
     free(descriptions)
     return results
 
-
 def get_properties(subject, encoding=ENCODING):
     description = jack_description_t()
     ret = jlib.jack_get_properties(subject, byref(description))
@@ -905,20 +672,17 @@ def get_properties(subject, encoding=ENCODING):
     free_description(byref(description), 0)
     return results
 
-
 def get_client_properties(client, client_uuid, encoding=ENCODING):
     if isinstance(client_uuid, str):
         client_uuid = get_uuid_for_client_name(client, client_uuid)
 
     return get_properties(uuid_parse(client_uuid), encoding)
 
-
 def get_port_properties(client, port, encoding=ENCODING):
     if not isinstance(port, POINTER(jack_port_t)):
         port = port_by_name(client, port)
 
     return get_properties(port_uuid(port), encoding)
-
 
 def get_property(subject, key, encoding=ENCODING):
     # FIXME: how to handle non-null terminated data in value?
@@ -956,13 +720,11 @@ def get_property(subject, key, encoding=ENCODING):
         free(value_c)
         return Property(key, value, type_)
 
-
 def get_client_property(client, client_uuid, key, encoding=ENCODING):
     if isinstance(client_uuid, str):
         client_uuid = get_uuid_for_client_name(client, client_uuid)
 
     return get_property(uuid_parse(client_uuid), key, encoding)
-
 
 def get_port_property(client, port, key, encoding=ENCODING):
     if not isinstance(port, POINTER(jack_port_t)):
@@ -970,19 +732,15 @@ def get_port_property(client, port, key, encoding=ENCODING):
 
     return get_property(port_uuid(port), key, encoding)
 
-
 def get_port_pretty_name(client, port, encoding=ENCODING):
     prop = get_port_property(client, port, JACK_METADATA_PRETTY_NAME, encoding)
     return prop.value if prop else None
 
-
 def remove_all_properties(client):
     return jlib.jack_remove_property(client)
 
-
 def remove_properties(client, subject):
     return jlib.jack_remove_property(client, subject)
-
 
 def remove_client_properties(client, client_uuid):
     if isinstance(client_uuid, str):
@@ -990,17 +748,14 @@ def remove_client_properties(client, client_uuid):
 
     return remove_properties(client, uuid_parse(client_uuid))
 
-
 def remove_port_properties(client, port):
     if not isinstance(port, POINTER(jack_port_t)):
         port = port_by_name(client, port)
 
     return remove_properties(client, port_uuid(port))
 
-
 def remove_property(client, subject, key, encoding=ENCODING):
     return jlib.jack_remove_property(client, subject, _e(key, encoding))
-
 
 def remove_client_property(client, client_uuid, key, encoding=ENCODING):
     if isinstance(client_uuid, str):
@@ -1008,13 +763,11 @@ def remove_client_property(client, client_uuid, key, encoding=ENCODING):
 
     return remove_property(client, uuid_parse(client_uuid), key, encoding)
 
-
 def remove_port_property(client, port, key, encoding=ENCODING):
     if not isinstance(port, POINTER(jack_port_t)):
         port = port_by_name(client, port)
 
     return remove_property(client, port_uuid(port), key, encoding)
-
 
 def set_property(client, subject, key, value, type=None, encoding=ENCODING):
     if value is not None and encoding:
@@ -1025,7 +778,6 @@ def set_property(client, subject, key, value, type=None, encoding=ENCODING):
 
     return jlib.jack_set_property(client, subject, _e(key, encoding), value, type)
 
-
 def set_client_property(client, client_uuid, key, value, type=None, encoding=ENCODING):
     if isinstance(client_uuid, str):
         client_uuid = get_uuid_for_client_name(client, client_uuid)
@@ -1033,14 +785,12 @@ def set_client_property(client, client_uuid, key, value, type=None, encoding=ENC
     uuid = uuid_parse(client_uuid)
     return set_property(client, uuid, key, value, type, encoding) if uuid != -1 else -1
 
-
 def set_port_property(client, port, key, value, type=None, encoding=ENCODING):
     if not isinstance(port, POINTER(jack_port_t)):
         port = port_by_name(client, port)
 
     uuid = port_uuid(port)
     return set_property(client, uuid, key, value, type, encoding) if uuid != -1 else -1
-
 
 def set_port_pretty_name(client, port, value, encoding=ENCODING):
     return set_port_property(client, port, JACK_METADATA_PRETTY_NAME, value, "text/plain", encoding)

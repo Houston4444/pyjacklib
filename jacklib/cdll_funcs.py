@@ -1,6 +1,8 @@
+import sys
 from ctypes import (
     ARRAY,
     CDLL,
+    cdll,
     c_char_p,
     POINTER,
     c_int,
@@ -8,7 +10,8 @@ from ctypes import (
     c_float,
     c_ulong,
     c_uint32,
-    c_size_t)
+    c_size_t,
+    sizeof)
 
 from .types import (
     jack_client_t,
@@ -23,21 +26,32 @@ from .types import (
     jack_latency_callback_mode_t,
     jack_transport_state_t,
     jack_midi_data_t,
+    jack_session_event_type_t,
+    jack_description_t,
     jack_position_t,
     jack_midi_event_t,
+    jack_session_event_t,
+    jack_session_command_t,
     jack_latency_range_t,
     JackThreadCallback,
     JackErrorCallback,
     JackTimebaseCallback
 )
 
-_JACK2 = True
+def _is_jack2(jlib: CDLL) -> bool:
+    try:
+        if jlib.jack_get_version_string:
+            return True
 
-def set_jack2(yesno: bool):
-    global _JACK2
-    _JACK2 = yesno
+    except AttributeError:
+        return False
+    
+    return False
 
-def setup_cdll_functions(jlib: CDLL):
+def _is_python_64bit():
+    return sizeof(c_void_p) == 8
+
+def _set_cdll_functions(jlib: CDLL):
     try:
         jlib.jack_get_version_string.argtypes = None
         jlib.jack_get_version_string.restype = c_char_p
@@ -99,7 +113,7 @@ def setup_cdll_functions(jlib: CDLL):
     except AttributeError:
         jlib.jack_is_realtime = None
         
-def setup_non_callback_cdll_func(jlib: CDLL):
+def _set_non_callback_cdll_func(jlib: CDLL):
     try:
         jlib.jack_cycle_wait.argtypes = [POINTER(jack_client_t)]
         jlib.jack_cycle_wait.restype = jack_nframes_t
@@ -119,7 +133,7 @@ def setup_non_callback_cdll_func(jlib: CDLL):
     except AttributeError:
         jlib.jack_set_process_thread = None
         
-def setup_server_control_funcs(jlib: CDLL):
+def _set_server_control_funcs(jlib: CDLL):
     jlib.jack_set_freewheel.argtypes = [POINTER(jack_client_t), c_int]
     jlib.jack_set_freewheel.restype = c_int
 
@@ -138,7 +152,7 @@ def setup_server_control_funcs(jlib: CDLL):
     jlib.jack_cpu_load.argtypes = [POINTER(jack_client_t)]
     jlib.jack_cpu_load.restype = c_float
     
-def setup_port_funcs(jlib: CDLL):
+def _set_port_funcs(jlib: CDLL, is_jack2: bool):
     jlib.jack_port_register.argtypes = [
         POINTER(jack_client_t), c_char_p, c_char_p, c_ulong, c_ulong]
     jlib.jack_port_register.restype = POINTER(jack_port_t)
@@ -163,7 +177,7 @@ def setup_port_funcs(jlib: CDLL):
     jlib.jack_port_type.argtypes = [POINTER(jack_port_t)]
     jlib.jack_port_type.restype = c_char_p
 
-    if _JACK2:
+    if is_jack2:
         jlib.jack_port_type_id.argtypes = [POINTER(jack_port_t)]
         jlib.jack_port_type_id.restype = jack_port_type_id_t
 
@@ -254,7 +268,7 @@ def setup_port_funcs(jlib: CDLL):
     except AttributeError:
         jlib.jack_port_uuid = None
         
-def setup_latency_func(jlib: CDLL):
+def _set_latency_func(jlib: CDLL):
     jlib.jack_port_set_latency.argtypes = [POINTER(jack_port_t), jack_nframes_t]
     jlib.jack_port_set_latency.restype = None
 
@@ -292,7 +306,7 @@ def setup_latency_func(jlib: CDLL):
         POINTER(jack_client_t), POINTER(jack_port_t)]
     jlib.jack_recompute_total_latency.restype = c_int
     
-def setup_port_searching_func(jlib: CDLL):
+def _set_port_searching_func(jlib: CDLL):
     jlib.jack_get_ports.argtypes = [POINTER(jack_client_t), c_char_p, c_char_p, c_ulong]
     jlib.jack_get_ports.restype = POINTER(c_char_p)
 
@@ -302,7 +316,7 @@ def setup_port_searching_func(jlib: CDLL):
     jlib.jack_port_by_id.argtypes = [POINTER(jack_client_t), jack_port_id_t]
     jlib.jack_port_by_id.restype = POINTER(jack_port_t)
     
-def setup_time_func(jlib: CDLL):
+def _set_time_func(jlib: CDLL):
     jlib.jack_frames_since_cycle_start.argtypes = [POINTER(jack_client_t)]
     jlib.jack_frames_since_cycle_start.restype = jack_nframes_t
 
@@ -334,7 +348,7 @@ def setup_time_func(jlib: CDLL):
     jlib.jack_get_time.argtypes = None
     jlib.jack_get_time.restype = jack_time_t
     
-def setup_misc_func(jlib: CDLL):
+def _set_misc_func(jlib: CDLL):
     jlib.jack_free.argtypes = [c_void_p]
     jlib.jack_free.restype = None
 
@@ -344,7 +358,7 @@ def setup_misc_func(jlib: CDLL):
     except AttributeError:
         jlib.jack_set_error_function = None
         
-def setup_transport_func(jlib: CDLL):
+def _set_transport_func(jlib: CDLL):
     jlib.jack_release_timebase.argtypes = [POINTER(jack_client_t)]
     jlib.jack_release_timebase.restype = c_int
 
@@ -384,7 +398,7 @@ def setup_transport_func(jlib: CDLL):
     jlib.jack_transport_stop.argtypes = [POINTER(jack_client_t)]
     jlib.jack_transport_stop.restype = None
     
-def setup_midi_func(jlib: CDLL):
+def _set_midi_func(jlib: CDLL):
     jlib.jack_midi_get_event_count.argtypes = [c_void_p]
     jlib.jack_midi_get_event_count.restype = jack_nframes_t
 
@@ -410,3 +424,161 @@ def setup_midi_func(jlib: CDLL):
 
     jlib.jack_midi_get_lost_event_count.argtypes = [c_void_p]
     jlib.jack_midi_get_lost_event_count.restype = c_uint32
+    
+def _set_session_func(jlib: CDLL):    
+    try:
+        jlib.jack_session_reply.argtypes = [
+            POINTER(jack_client_t), POINTER(jack_session_event_t)]
+        jlib.jack_session_reply.restype = c_int
+    except AttributeError:
+        jlib.jack_session_reply = None
+
+    try:
+        jlib.jack_session_event_free.argtypes = [
+            POINTER(jack_session_event_t)]
+        jlib.jack_session_event_free.restype = None
+    except AttributeError:
+        jlib.jack_session_event_free = None
+
+    try:
+        jlib.jack_client_get_uuid.argtypes = [POINTER(jack_client_t)]
+        jlib.jack_client_get_uuid.restype = c_char_p
+    except AttributeError:
+        jlib.jack_client_get_uuid = None
+
+    try:
+        jlib.jack_session_notify.argtypes = [
+            POINTER(jack_client_t),
+            c_char_p,
+            jack_session_event_type_t,
+            c_char_p,
+        ]
+        jlib.jack_session_notify.restype = POINTER(jack_session_command_t)
+    except AttributeError:
+        jlib.jack_session_notify = None
+
+    try:
+        jlib.jack_session_commands_free.argtypes = [
+            POINTER(jack_session_command_t)]
+        jlib.jack_session_commands_free.restype = None
+    except AttributeError:
+        jlib.jack_session_commands_free = None
+
+    try:
+        jlib.jack_get_uuid_for_client_name.argtypes = [
+            POINTER(jack_client_t), c_char_p]
+        jlib.jack_get_uuid_for_client_name.restype = c_char_p
+    except AttributeError:
+        jlib.jack_get_uuid_for_client_name = None
+
+    try:
+        jlib.jack_get_client_name_by_uuid.argtypes = [
+            POINTER(jack_client_t), c_char_p]
+        jlib.jack_get_client_name_by_uuid.restype = c_char_p
+    except AttributeError:
+        jlib.jack_get_client_name_by_uuid = None
+
+    try:
+        jlib.jack_reserve_client_name.argtypes = [
+            POINTER(jack_client_t), c_char_p, c_char_p]
+        jlib.jack_reserve_client_name.restype = c_int
+    except AttributeError:
+        jlib.jack_reserve_client_name = None
+
+    try:
+        jlib.jack_client_has_session_callback.argtypes = [
+            POINTER(jack_client_t), c_char_p]
+        jlib.jack_client_has_session_callback.restype = c_int
+    except AttributeError:
+        jlib.jack_client_has_session_callback = None
+
+    try:
+        jlib.jack_uuid_parse.argtypes = [c_char_p, POINTER(jack_uuid_t)]
+        jlib.jack_uuid_parse.restype = c_int
+    except AttributeError:
+        jlib.jack_uuid_parse = None
+
+    try:
+        jlib.jack_uuid_unparse.argtypes = [jack_uuid_t, c_char_p]
+        jlib.jack_uuid_unparse.restype = None
+    except AttributeError:
+        jlib.jack_uuid_unparse = None
+        
+def _set_metadata_func(jlib: CDLL):
+    try:
+        jlib.jack_free_description.argtypes = [
+            POINTER(jack_description_t), c_int]
+        jlib.jack_free_description.restype = None
+
+        jlib.jack_get_all_properties.argtypes = [
+            POINTER(POINTER(jack_description_t))]
+        jlib.jack_get_all_properties.restype = c_int
+
+        jlib.jack_get_properties.argtypes = [
+            jack_uuid_t, POINTER(jack_description_t)]
+        jlib.jack_get_properties.restype = c_int
+
+        jlib.jack_get_property.argtypes = [
+            jack_uuid_t, c_char_p, POINTER(c_char_p), POINTER(c_char_p)]
+        jlib.jack_get_property.restype = c_int
+
+        jlib.jack_remove_all_properties.argtypes = [POINTER(jack_client_t)]
+        jlib.jack_remove_all_properties.restype = c_int
+
+        jlib.jack_remove_properties.argtypess = [
+            POINTER(jack_client_t), POINTER(jack_uuid_t)]
+        jlib.jack_remove_properties.restype = c_int
+
+        jlib.jack_remove_property.argtypes = [
+            POINTER(jack_client_t), POINTER(jack_uuid_t), c_char_p]
+        jlib.jack_remove_property.restype = c_int
+
+        jlib.jack_set_property.argtypes = [
+            POINTER(jack_client_t),
+            jack_uuid_t,
+            c_char_p,
+            c_char_p,
+            c_char_p,
+        ]
+        jlib.jack_set_property.restype = c_int
+
+    except AttributeError:
+        jlib.jack_free_description = None
+        jlib.jack_get_properties = None
+        jlib.jack_get_property = None
+        jlib.jack_remove_all_properties = None
+        jlib.jack_remove_properties = None
+        jlib.jack_remove_property = None
+        jlib.jack_set_property = None
+    
+def get_jlib() -> CDLL:
+    # Load JACK shared library
+    try:
+        if sys.platform == "darwin":
+            _libname = "libjack.dylib"
+        elif sys.platform in ("win32", "cygwin"):
+            if _is_python_64bit():
+                _libname = "libjack64.dll"
+            else:
+                _libname = "libjack.dll"
+        else:
+            _libname = "libjack.so.0"
+
+        jlib = cdll.LoadLibrary(_libname)
+    except OSError:
+        raise ImportError("JACK is not available in this system")
+    
+    is_jack2 = _is_jack2(jlib)
+    _set_cdll_functions(jlib)
+    _set_non_callback_cdll_func(jlib)
+    _set_server_control_funcs(jlib)
+    _set_port_funcs(jlib, is_jack2)
+    _set_latency_func(jlib)
+    _set_port_searching_func(jlib)
+    _set_time_func(jlib)
+    _set_misc_func(jlib)
+    _set_transport_func(jlib)
+    _set_midi_func(jlib)
+    _set_session_func(jlib)
+    _set_metadata_func(jlib)
+    return jlib
