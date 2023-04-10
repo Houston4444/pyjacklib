@@ -82,3 +82,17 @@ class JackPropertyChange(IntEnum):
     CREATED = 0
     CHANGED = 1
     DELETED = 2
+    
+
+class JackMetadata:
+    _PREFIX = "http://jackaudio.org/metadata/"
+    CONNECTED = _PREFIX + "connected"
+    EVENT_TYPES = _PREFIX + "event-types"
+    HARDWARE = _PREFIX + "hardware"
+    ICON_LARGE = _PREFIX + "icon-large"
+    ICON_NAME = _PREFIX + "icon-name"
+    ICON_SMALL = _PREFIX + "icon-small"
+    ORDER = _PREFIX + "order"
+    PORT_GROUP = _PREFIX + "port-group"
+    PRETTY_NAME = _PREFIX + "pretty-name"
+    SIGNAL_TYPE = _PREFIX + "signal-type"
