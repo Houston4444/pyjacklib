@@ -100,20 +100,22 @@ def get_version_string() -> str:
 
     return ''
 
-def client_open(client_name: str, options, status, uuid="") -> 'pointer[jack_client_t]':
+def client_open(client_name: str, options: JackOptions,
+                status: JackStatus, uuid="") -> 'pointer[jack_client_t]':
     if jlib.jack_client_open:
         return jlib.jack_client_open(
-            _e(client_name), options, status, _e(uuid) if uuid else None)
+            _e(client_name), options, status,
+            _e(uuid) if uuid else None)
 
     return None
 
-def client_rename(client, new_name: str):
+def client_rename(client: 'pointer[jack_client_t]', new_name: str):
     if jlib.jack_client_rename:
         return jlib.jack_client_rename(client, _e(new_name))
 
     return None
 
-def client_close(client) -> int:
+def client_close(client: 'pointer[jack_client_t]') -> int:
     if jlib.jack_client_close:
         return jlib.jack_client_close(client)
 
@@ -125,19 +127,19 @@ def client_name_size() -> int:
 
     return 0
 
-def get_client_name(client):
+def get_client_name(client: 'pointer[jack_client_t]'):
     if jlib.jack_get_client_name:
         return jlib.jack_get_client_name(client)
 
     return None
 
-def activate(client) -> int:
+def activate(client: 'pointer[jack_client_t]') -> int:
     if jlib.jack_activate:
         return jlib.jack_activate(client)
 
     return -1
 
-def deactivate(client) -> int:
+def deactivate(client: 'pointer[jack_client_t]') -> int:
     if jlib.jack_deactivate:
         return jlib.jack_deactivate(client)
 
@@ -150,7 +152,7 @@ def get_client_pid(name: str) -> int:
 
     return 0
 
-def is_realtime(client) -> int:
+def is_realtime(client: 'pointer[jack_client_t]') -> int:
     if jlib.jack_is_realtime:
         return jlib.jack_is_realtime(client)
 
@@ -159,17 +161,17 @@ def is_realtime(client) -> int:
 # Non-Callback API
 _thread_callback = None
 
-def cycle_wait(client):
+def cycle_wait(client: 'pointer[jack_client_t]'):
     if jlib.jack_cycle_wait:
         return jlib.jack_cycle_wait(client)
 
     return 0
 
-def cycle_signal(client, status):
+def cycle_signal(client: 'pointer[jack_client_t]', status: JackStatus):
     if jlib.jack_cycle_signal:
-        jlib.jack_cycle_signal(client, status)
+        jlib.jack_cycle_signal(client, status.value)
 
-def set_process_thread(client, thread_callback, arg):
+def set_process_thread(client: 'pointer[jack_client_t]', thread_callback, arg):
     if jlib.jack_set_process_thread:
         global _thread_callback
         _thread_callback = JackThreadCallback(thread_callback)
