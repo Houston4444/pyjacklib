@@ -3,6 +3,15 @@
 Python bindings for `libjack` using [ctypes], which allow you to write JACK
 client applications in Python.
 
+This version is a fork of the jackaudio pyjacklib, with few API changes and a code re-organization.
+* api.py has been splitted in many files for more readability
+* The api.py module contains near only the public functions
+* C enums have been translated to enums with enum python lib (using IntEnum or IntFlag)
+* may fix impossibility to use several jack clients with the same instance
+* some typing
+* still work in progress
+
+
 The library provides a low-level, almost unaltered mapping of the `libjack`
 [C API], plus a few additional convenience functions.
 
